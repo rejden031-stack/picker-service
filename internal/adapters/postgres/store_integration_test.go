@@ -91,7 +91,11 @@ func TestStoresIntegration(t *testing.T) {
 	}
 
 	userStore := NewUserStore(pool)
-	creds, err := userStore.UserByUsername(ctx, "senior")
+	testUser := "senior-" + suffix
+	userID := insertRow(t, pool, `INSERT INTO users (username, password_hash, role) VALUES ($1, 'x', 'senior') RETURNING id`, testUser)
+	t.Cleanup(func() { _, _ = pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID) })
+
+	creds, err := userStore.UserByUsername(ctx, testUser)
 	if err != nil {
 		t.Fatalf("UserByUsername: %v", err)
 	}
