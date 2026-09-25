@@ -1,0 +1,6 @@
+# Нормализация: в репозитории храним всё в LF, независимо от ОС разработчика.
+* text=auto
+*.go text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+Dockerfile text eol=lf

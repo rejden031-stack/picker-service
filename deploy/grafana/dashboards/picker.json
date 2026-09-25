@@ -1,0 +1,54 @@
+{
+  "title": "Picker Service",
+  "uid": "picker-service",
+  "schemaVersion": 39,
+  "tags": ["picker"],
+  "editable": true,
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "title": "RPS by endpoint",
+      "type": "timeseries",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "datasource": { "uid": "prometheus" }, "expr": "sum(rate(http_requests_total[1m])) by (path)", "legendFormat": "{{path}}" }
+      ]
+    },
+    {
+      "title": "Latency p99 (seconds)",
+      "type": "timeseries",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "datasource": { "uid": "prometheus" }, "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le, path))", "legendFormat": "{{path}}" }
+      ]
+    },
+    {
+      "title": "Postgres pool",
+      "type": "timeseries",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "datasource": { "uid": "prometheus" }, "expr": "pgxpool_total_connections", "legendFormat": "total" },
+        { "datasource": { "uid": "prometheus" }, "expr": "pgxpool_idle_connections", "legendFormat": "idle" },
+        { "datasource": { "uid": "prometheus" }, "expr": "pgxpool_acquired_connections", "legendFormat": "acquired" }
+      ]
+    },
+    {
+      "title": "Go goroutines",
+      "type": "timeseries",
+      "datasource": { "uid": "prometheus", "type": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "targets": [
+        { "datasource": { "uid": "prometheus" }, "expr": "go_goroutines", "legendFormat": "goroutines" }
+      ]
+    }
+  ]
+}

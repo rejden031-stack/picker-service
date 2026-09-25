@@ -1,0 +1,20 @@
+{
+  "products": [
+    {"id": 1, "sku": "SKU-1001", "name": "Подшипник 6203", "barcode": "4600000001"},
+    {"id": 2, "sku": "SKU-1002", "name": "Кран шаровый 1/2", "barcode": "4600000002"},
+    {"id": 3, "sku": "SKU-1003", "name": "Якорь 220В", "barcode": "4600000003"},
+    {"id": 4, "sku": "SKU-1004", "name": "Уплотнительное кольцо", "barcode": "4600000004"},
+    {"id": 5, "sku": "SKU-1005", "name": "Хомут 12 мм", "barcode": "4600000005"}
+  ],
+  "placements": [
+    {"product_id": 1, "cell_id": 1, "qty": 5, "is_primary": true},
+    {"product_id": 1, "cell_id": 7, "qty": 3, "is_primary": false},
+    {"product_id": 1, "cell_id": 10, "qty": 2, "is_primary": false},
+    {"product_id": 2, "cell_id": 2, "qty": 4, "is_primary": true},
+    {"product_id": 2, "cell_id": 8, "qty": 1, "is_primary": false},
+    {"product_id": 3, "cell_id": 3, "qty": 7, "is_primary": true},
+    {"product_id": 4, "cell_id": 2, "qty": 10, "is_primary": true},
+    {"product_id": 4, "cell_id": 11, "qty": 4, "is_primary": false},
+    {"product_id": 5, "cell_id": 6, "qty": 12, "is_primary": true}
+  ]
+}

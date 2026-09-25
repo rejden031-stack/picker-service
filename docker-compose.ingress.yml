@@ -1,0 +1,22 @@
+# TLS/ingress для прод-стека: Caddy впереди picker-api.
+# Поднимается ДОПОЛНИТЕЛЬНО к docker-compose.prod.yml (тот же проект picker-prod):
+#   docker compose -f docker-compose.prod.yml -f docker-compose.ingress.yml \
+#     --env-file .env.prod up -d
+#
+# Сертификаты: сгенерируйте самоподписанные в ./deploy/certs (см. README) или
+# замените на Let's Encrypt в Caddyfile.
+name: picker-prod
+
+services:
+  proxy:
+    image: caddy:2-alpine
+    container_name: picker-prod-proxy
+    restart: unless-stopped
+    ports:
+      - "${APP_HTTPS_PORT:-8443}:443"
+      - "${APP_HTTP_REDIRECT_PORT:-8080}:80"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/certs:/certs:ro
+    depends_on:
+      - picker-api

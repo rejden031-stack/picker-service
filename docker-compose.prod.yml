@@ -1,0 +1,121 @@
+# Продакшен-стек: только приложение + его хранилища.
+# Мониторинг (prometheus/grafana) живёт отдельно и скрейпит /metrics с basic-auth.
+#
+# Запуск:  docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# Секреты — в .env.prod (НЕ в git). Образ собирается из deploy/Dockerfile.
+# Стек полностью изолирован: свой проект (сеть, volume, имена) — не пересекается
+# с дев-стеком docker-compose.yml.
+#
+# Пример .env.prod:
+#   APP_PORT=8000
+#   POSTGRES_PASSWORD=<сложный>          # DSN для приложения и migrate соберётся сам
+#   JWT_SECRET=<длинная случайная строка> # обязательно
+#   REDIS_ENABLED=true
+#   REDIS_PASSWORD=<сложный>             # пустой = без пароля
+#   LOGIN_RATE_PER_SEC=3
+#   LOGIN_RATE_BURST=6
+#   TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12
+#   METRICS_USER=monitoring
+#   METRICS_PASSWORD=<сложный>
+#   ADMIN_USERNAME=admin          # стартовый админ (создаётся при первом старте)
+#   ADMIN_PASSWORD=<сложный>
+
+name: picker-prod
+
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: picker-prod-migrate
+    restart: "no"
+    command: ["/usr/local/bin/migrate", "-path", "/migrations"]
+    environment:
+      DATABASE_DSN: postgres://picker:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/picker?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  picker-api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: picker-prod-api
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      HTTP_ADDR: :8000
+      DATABASE_DSN: postgres://picker:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/picker?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOGIN_RATE_PER_SEC: ${LOGIN_RATE_PER_SEC:-3}
+      LOGIN_RATE_BURST: ${LOGIN_RATE_BURST:-6}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      METRICS_USER: ${METRICS_USER:-}
+      METRICS_PASSWORD: ${METRICS_PASSWORD:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: picker-prod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: picker
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: picker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U picker -d picker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # БД наружу не публикуем — только внутренняя сеть контейнеров.
+
+  redis:
+    image: redis:7-alpine
+    container_name: picker-prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-}", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -z \"$$REDIS_PASSWORD\" ]; then redis-cli ping | grep PONG; else redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep PONG; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    build:
+      context: ./deploy/backup
+    container_name: picker-prod-backup
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  backups:

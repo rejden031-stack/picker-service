@@ -1,0 +1,18 @@
+# TLS-терминация для picker-prod.
+# Сертификаты лежат в ./deploy/certs (генерация: см. README, раздел «Деплой в прод»).
+# В реальный боевой домен вместо файлов сертификатов проще включить
+# авто-выпуск Let's Encrypt:  tls { on_demand } / адрес вида https://api.example.com
+#
+# Caddy сам проставляет X-Forwarded-For; X-Real-IP — явно, для rate-limit приложения,
+# которое доверяет прокси только через TRUSTED_PROXIES.
+
+:443 {
+	tls /certs/picker-prod.crt /certs/picker-prod.key
+	reverse_proxy picker-api:8000 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+:80 {
+	redir https://{host}{uri} permanent
+}

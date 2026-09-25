@@ -1,0 +1,4 @@
+DELETE FROM cells;
+DELETE FROM shelves;
+DELETE FROM racks;
+DELETE FROM floors;

@@ -1,0 +1,6 @@
+.git
+testdata/
+deploy/
+README.md
+*.log
+.env*

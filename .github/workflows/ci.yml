@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: picker
+          POSTGRES_PASSWORD: picker
+          POSTGRES_DB: picker
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U picker -d picker"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: gofmt
+        run: gofmt -l . && test -z "$(gofmt -l .)"
+
+      - name: vet
+        run: go vet ./...
+
+      - name: tests (unit + live Postgres/Redis)
+        env:
+          TEST_DATABASE_DSN: postgres://picker:picker@localhost:5433/picker?sslmode=disable
+          TEST_REDIS_ADDR: localhost:6379
+          DATABASE_DSN: postgres://picker:picker@localhost:5433/picker?sslmode=disable
+        run: |
+          go run ./cmd/migrate
+          go test -count=1 ./...
+
+      - name: build binary
+        run: go build ./cmd/server
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build image
+        run: docker build -f deploy/Dockerfile -t picker-server:ci .
